@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="apple-touch-icon" href="logo.png?v=1">
-
+<link rel="apple-touch-icon" href="logo.png?v=1">
     <title>Money Manager</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -127,7 +126,21 @@
         .modal-card { background: var(--surface); border: 1px solid var(--border); padding: 30px; border-radius: 24px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
         .setup-input { background: var(--surface-highlight); border: 2px solid var(--primary); color: white; font-size: 2rem; width: 100%; text-align: center; padding: 15px; border-radius: 16px; margin: 20px 0; outline: none; }
         .start-btn { background: var(--primary); color: white; width: 100%; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 1rem; border: none; cursor: pointer; }
+        /* SCROLLABLE HISTORY */
+#viewList {
+    max-height: 400px;
+    overflow-y: auto;
+    scrollbar-width: thin; /* Firefox */
+}
 
+/* Chrome scrollbar */
+#viewList::-webkit-scrollbar {
+    width: 6px;
+}
+#viewList::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 10px;
+}
     </style>
 </head>
 <body>
@@ -170,6 +183,23 @@
             </div>
         </div>
     </div>
+<!-- TODAY'S STAGE -->
+<div class="card" style="background: linear-gradient(145deg, #121212, #1a1a1a); border: 1px solid #333;">
+    <h2 style="display: flex; justify-content: space-between; align-items: center;">
+        Today's Snapshot 
+        <span id="todayDate" style="font-size: 0.7rem; opacity: 0.6;"></span>
+    </h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+        <div style="background: rgba(16, 185, 129, 0.05); padding: 12px; border-radius: 12px; border-left: 3px solid var(--green);">
+            <div class="label-xs">Income Today</div>
+            <div class="mono val-md c-green" id="todayIncome">$0.00</div>
+        </div>
+        <div style="background: rgba(239, 68, 68, 0.05); padding: 12px; border-radius: 12px; border-left: 3px solid var(--red);">
+            <div class="label-xs">Spent Today</div>
+            <div class="mono val-md c-red" id="todayExpense">$0.00</div>
+        </div>
+    </div>
+</div>
 
     <!-- INPUT FORM -->
     <div class="card">
@@ -271,16 +301,13 @@
     const els = {
         modal: document.getElementById('setupModal'),
         app: document.getElementById('appContent'),
-        // Header
         balance: document.getElementById('overallBalance'),
         hIn: document.getElementById('headerIncome'),
         hOut: document.getElementById('headerExpense'),
         hRes: document.getElementById('headerResisted'),
-        // Report Table
         wIn: document.getElementById('weekIn'), wOut: document.getElementById('weekOut'), wSav: document.getElementById('weekSav'),
         mIn: document.getElementById('monthIn'), mOut: document.getElementById('monthOut'), mSav: document.getElementById('monthSav'),
         yIn: document.getElementById('yearIn'), yOut: document.getElementById('yearOut'), ySav: document.getElementById('yearSav'),
-        // Core
         list: document.getElementById('list'),
         form: document.getElementById('addForm'),
         date: document.getElementById('dateInput')
@@ -288,7 +315,6 @@
 
     els.date.value = new Date().toLocaleDateString('en-CA');
 
-    // --- INIT ---
     function checkSetup() {
         if (isNaN(initialBalance)) {
             els.modal.style.display = 'flex';
@@ -317,7 +343,6 @@
         }
     }
 
-    // --- DATE HELPERS ---
     const getWeekNum = (d) => {
         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
@@ -325,7 +350,6 @@
         return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
     };
 
-    // --- CHART ---
     const ctx = document.getElementById('myChart').getContext('2d');
     const chart = new Chart(ctx, {
         type: 'bar',
@@ -345,20 +369,20 @@
         }
     });
 
-    // --- CORE ENGINE ---
     function updateUI() {
         let wallet = initialBalance;
         
-        // Totals
         let tIn = 0, tOut = 0, tRes = 0;
 
-        // Period Trackers
+        // --- TODAY TRACKER ---
+        const todayStr = new Date().toLocaleDateString('en-CA');
+        let todayIn = 0, todayOut = 0;
+
         const now = new Date();
         const currYear = now.getFullYear();
         const currMonth = now.getMonth();
         const currWeek = getWeekNum(now);
 
-        // Week/Month/Year Accumulators
         let wData = {i:0, o:0, r:0}, mData = {i:0, o:0, r:0}, yData = {i:0, o:0, r:0};
 
         els.list.innerHTML = '';
@@ -368,12 +392,16 @@
             const val = t.amount;
             const d = new Date(t.date);
             
-            // Global Math
             if(t.type === 'income') { wallet += val; tIn += val; }
             if(t.type === 'expense') { wallet -= val; tOut += val; }
             if(t.type === 'impulse') { tRes += val; }
 
-            // Period Check
+            // --- TODAY CHECK ---
+            if (t.date === todayStr) {
+                if (t.type === 'income') todayIn += val;
+                if (t.type === 'expense') todayOut += val;
+            }
+
             const isYear = d.getFullYear() === currYear;
             const isMonth = isYear && d.getMonth() === currMonth;
             const isWeek = isYear && getWeekNum(d) === currWeek;
@@ -394,7 +422,6 @@
                 if(t.type === 'impulse') wData.r += val;
             }
 
-            // List Render
             if (els.list.children.length < 50) {
                 const li = document.createElement('li');
                 li.className = 'tx-item';
@@ -417,18 +444,28 @@
             }
         });
 
-        // Update Headers
         els.balance.innerText = usd.format(wallet);
         els.hIn.innerText = usd.format(tIn);
         els.hOut.innerText = usd.format(tOut);
         els.hRes.innerText = usd.format(tRes);
 
-        // Update Report Table
-        els.wIn.innerText = usd.format(wData.i); els.wOut.innerText = usd.format(wData.o); els.wSav.innerText = usd.format(wData.r);
-        els.mIn.innerText = usd.format(mData.i); els.mOut.innerText = usd.format(mData.o); els.mSav.innerText = usd.format(mData.r);
-        els.yIn.innerText = usd.format(yData.i); els.yOut.innerText = usd.format(yData.o); els.ySav.innerText = usd.format(yData.r);
+        els.wIn.innerText = usd.format(wData.i); 
+        els.wOut.innerText = usd.format(wData.o); 
+        els.wSav.innerText = usd.format(wData.r);
 
-        // Update Chart
+        els.mIn.innerText = usd.format(mData.i); 
+        els.mOut.innerText = usd.format(mData.o); 
+        els.mSav.innerText = usd.format(mData.r);
+
+        els.yIn.innerText = usd.format(yData.i); 
+        els.yOut.innerText = usd.format(yData.o); 
+        els.ySav.innerText = usd.format(yData.r);
+
+        // --- UPDATE TODAY UI ---
+        document.getElementById('todayIncome').innerText = usd.format(todayIn);
+        document.getElementById('todayExpense').innerText = usd.format(todayOut);
+        document.getElementById('todayDate').innerText = todayStr;
+
         chart.data.datasets[0].data = [tIn, tOut, tRes];
         chart.update();
 
@@ -466,7 +503,6 @@
 
     els.form.addEventListener('submit', addTx);
     checkSetup();
-
 </script>
 </body>
 </html>
