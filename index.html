@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Money Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #000000;
+            --surface: #121212;
+            --surface-highlight: #1E1E1E;
+            --border: #2A2A2A;
+            --primary: #3B82F6;
+            --green: #10B981;
+            --red: #EF4444;
+            --gold: #F59E0B;
+            --text: #FFFFFF;
+            --text-dim: #888888;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 600px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-bottom: 80px;
+        }
+
+        /* --- UTILS --- */
+        h2 { margin: 0; font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .val-xl { font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; line-height: 1.1; }
+        .val-lg { font-size: 1rem; font-weight: 700; }
+        .val-md { font-size: 1rem; font-weight: 600; }
+        .label-xs { font-size: 0.6rem; color: var(--text-dim); letter-spacing: 0.5px; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+        
+        .c-green { color: var(--green); }
+        .c-red { color: var(--red); }
+        .c-gold { color: var(--gold); }
+        .c-blue { color: var(--primary); }
+
+        /* --- STICKY HERO --- */
+        .hero-section {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(18, 18, 18, 0.98);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            margin: -16px -16px 0 -16px;
+            padding: 20px 10px 15px 10px;
+            border-radius: 0 0 24px 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .hero-top { text-align: center; }
+        
+        /* Updated 3-Column Grid for Header */
+        .hero-stats-row {
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1fr; 
+            gap: 5px;
+            padding-top: 12px; 
+            border-top: 1px solid var(--border);
+        }
+        
+        .hero-stat-item { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            border-right: 1px solid var(--border);
+        }
+        .hero-stat-item:last-child { border-right: none; }
+
+        /* --- FORM & CARDS --- */
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+        .input-group { display: flex; flex-direction: column; gap: 12px; }
+        .row { display: flex; gap: 10px; }
+        .col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+        label.field-label { font-size: 0.75rem; font-weight: 600; color: var(--text-dim); margin-left: 4px; }
+        input, select { background: var(--surface-highlight); border: 1px solid var(--border); color: white; padding: 14px; border-radius: 12px; font-size: 16px; outline: none; width: 100%; font-family: inherit; }
+        button.main-btn { background: var(--primary); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 1rem; margin-top: 8px; cursor: pointer; }
+        
+        /* --- LIST & TABS --- */
+        .toggle-view { display: flex; background: var(--surface-highlight); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
+        .toggle-opt { flex: 1; text-align: center; padding: 10px; font-size: 0.9rem; border-radius: 8px; color: var(--text-dim); cursor: pointer; font-weight: 600; }
+        .toggle-opt.active { background: var(--surface); color: white; }
+        .tx-list { list-style: none; padding: 0; margin: 0; }
+        .tx-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
+        .del-btn { background: rgba(239, 68, 68, 0.1); color: var(--red); border: none; width: 30px; height: 30px; border-radius: 8px; margin-left: 10px; cursor: pointer; }
+
+        /* --- NEW: BOTTOM REPORT TABLE --- */
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .report-table th { text-align: left; color: var(--text-dim); padding-bottom: 10px; border-bottom: 1px solid var(--border); font-weight: 600; }
+        .report-table td { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .report-table tr:last-child td { border-bottom: none; }
+        .report-row-title { font-weight: 700; color: white; width: 30%; }
+        
+        /* --- MODAL --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .modal-card { background: var(--surface); border: 1px solid var(--border); padding: 30px; border-radius: 24px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .setup-input { background: var(--surface-highlight); border: 2px solid var(--primary); color: white; font-size: 2rem; width: 100%; text-align: center; padding: 15px; border-radius: 16px; margin: 20px 0; outline: none; }
+        .start-btn { background: var(--primary); color: white; width: 100%; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 1rem; border: none; cursor: pointer; }
+
+    </style>
+</head>
+<body>
+
+<!-- POPUP MODAL -->
+<div class="modal-overlay" id="setupModal">
+    <div class="modal-card">
+        <div style="font-size: 1.5rem; font-weight: 800; margin-bottom: 10px;">Welcome! 👋</div>
+        <div style="color: var(--text-dim); font-size: 0.9rem;">
+            How much money do you have right now?<br>
+            <span style="font-size:0.8rem;">(This is your starting baseline)</span>
+        </div>
+        <input type="number" id="initialInput" class="setup-input" placeholder="0.00" step="0.01">
+        <button class="start-btn" onclick="finishSetup()">Start Tracking</button>
+    </div>
+</div>
+
+<div class="app" id="appContent">
+
+    <!-- STICKY HERO -->
+    <div class="hero-section">
+        <div class="hero-top">
+            <div class="label-xs">CURRENT WALLET BALANCE</div>
+            <div class="mono val-xl" id="overallBalance">$0.00</div>
+        </div>
+        
+        <!-- 3-COLUMN STATS ROW -->
+        <div class="hero-stats-row">
+            <div class="hero-stat-item">
+                <div class="label-xs" style="color: var(--green)">TOTAL INCOME</div>
+                <div class="mono val-lg c-green" id="headerIncome">$0.00</div>
+            </div>
+            <div class="hero-stat-item">
+                <div class="label-xs" style="color: var(--red)">TOTAL SPENT</div>
+                <div class="mono val-lg c-red" id="headerExpense">$0.00</div>
+            </div>
+            <div class="hero-stat-item">
+                <div class="label-xs" style="color: var(--gold)">RESISTED</div>
+                <div class="mono val-lg c-gold" id="headerResisted">$0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INPUT FORM -->
+    <div class="card">
+        <form id="addForm" class="input-group">
+            <div class="col">
+                <label class="field-label">Description</label>
+                <input type="text" id="desc" placeholder="e.g. Salary, Rent" required autocomplete="off">
+            </div>
+            <div class="row">
+                <div class="col">
+                    <label class="field-label">Amount</label>
+                    <input type="number" id="amount" placeholder="0.00" step="0.01" required>
+                </div>
+                <div class="col">
+                    <label class="field-label">Type</label>
+                    <select id="type">
+                        <option value="expense">Expense (-)</option>
+                        <option value="income">Income (+)</option>
+                        <option value="impulse">Resisted (Save)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col">
+                <label class="field-label">Date</label>
+                <input type="date" id="dateInput" required>
+            </div>
+            <button type="submit" class="main-btn">Save Transaction</button>
+        </form>
+    </div>
+
+    <!-- HISTORY & GRAPH -->
+    <div class="card" style="padding: 16px;">
+        <div class="toggle-view">
+            <div class="toggle-opt active" onclick="switchTab('list')" id="tabList">History</div>
+            <div class="toggle-opt" onclick="switchTab('chart')" id="tabChart">Graph</div>
+        </div>
+        <div id="viewList">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span class="label-xs">RECENT</span>
+                <button onclick="factoryReset()" style="background:none; border:none; color:var(--red); font-size:0.7rem; font-weight:700; cursor:pointer;">⚠ RESET ALL</button>
+            </div>
+            <ul class="tx-list" id="list"></ul>
+        </div>
+        <div id="viewChart" style="display: none; height: 250px; position: relative;">
+            <canvas id="myChart"></canvas>
+        </div>
+    </div>
+
+    <!-- NEW: PERIODIC REPORTS -->
+    <div class="card">
+        <h2 style="margin-bottom:15px;">Performance Report</h2>
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>Period</th>
+                    <th style="color:var(--green)">Income</th>
+                    <th style="color:var(--red)">Expense</th>
+                    <th style="color:var(--gold)">Resisted</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Week -->
+                <tr>
+                    <td class="report-row-title">This Week</td>
+                    <td class="mono" id="weekIn">$0</td>
+                    <td class="mono" id="weekOut">$0</td>
+                    <td class="mono" id="weekSav">$0</td>
+                </tr>
+                <!-- Month -->
+                <tr>
+                    <td class="report-row-title">This Month</td>
+                    <td class="mono" id="monthIn">$0</td>
+                    <td class="mono" id="monthOut">$0</td>
+                    <td class="mono" id="monthSav">$0</td>
+                </tr>
+                <!-- Year -->
+                <tr>
+                    <td class="report-row-title">This Year</td>
+                    <td class="mono" id="yearIn">$0</td>
+                    <td class="mono" id="yearOut">$0</td>
+                    <td class="mono" id="yearSav">$0</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+  <p style="text-align:center; font-size:14px; color:gray;">© 2026 Sakib Hossain Tahmid. All rights reserved.</p>
+</div>
+
+<script>
+    // --- CONFIG ---
+    const KEY_TX = 'money_manager_v9_tx';
+    const KEY_INIT = 'money_manager_v9_init';
+    
+    let transactions = JSON.parse(localStorage.getItem(KEY_TX)) || [];
+    let initialBalance = parseFloat(localStorage.getItem(KEY_INIT));
+    const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+    // --- DOM ELEMENTS ---
+    const els = {
+        modal: document.getElementById('setupModal'),
+        app: document.getElementById('appContent'),
+        // Header
+        balance: document.getElementById('overallBalance'),
+        hIn: document.getElementById('headerIncome'),
+        hOut: document.getElementById('headerExpense'),
+        hRes: document.getElementById('headerResisted'),
+        // Report Table
+        wIn: document.getElementById('weekIn'), wOut: document.getElementById('weekOut'), wSav: document.getElementById('weekSav'),
+        mIn: document.getElementById('monthIn'), mOut: document.getElementById('monthOut'), mSav: document.getElementById('monthSav'),
+        yIn: document.getElementById('yearIn'), yOut: document.getElementById('yearOut'), ySav: document.getElementById('yearSav'),
+        // Core
+        list: document.getElementById('list'),
+        form: document.getElementById('addForm'),
+        date: document.getElementById('dateInput')
+    };
+
+    els.date.value = new Date().toLocaleDateString('en-CA');
+
+    // --- INIT ---
+    function checkSetup() {
+        if (isNaN(initialBalance)) {
+            els.modal.style.display = 'flex';
+            els.app.style.filter = 'blur(5px)';
+        } else {
+            updateUI();
+        }
+    }
+
+    window.finishSetup = () => {
+        const val = parseFloat(document.getElementById('initialInput').value);
+        initialBalance = isNaN(val) ? 0 : val;
+        localStorage.setItem(KEY_INIT, initialBalance);
+        els.modal.style.display = 'none';
+        els.app.style.filter = 'blur(0px)';
+        updateUI();
+    }
+
+    window.factoryReset = () => {
+        if(confirm('⚠ FACTORY RESET: Delete all history and balance?')) {
+            transactions = [];
+            initialBalance = NaN;
+            localStorage.removeItem(KEY_TX);
+            localStorage.removeItem(KEY_INIT);
+            location.reload();
+        }
+    }
+
+    // --- DATE HELPERS ---
+    const getWeekNum = (d) => {
+        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+        var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    };
+
+    // --- CHART ---
+    const ctx = document.getElementById('myChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Income', 'Expense', 'Resisted'],
+            datasets: [{
+                label: 'Total',
+                data: [0, 0, 0],
+                backgroundColor: ['#10B981', '#EF4444', '#F59E0B'],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { display: false }, x: { grid: { display: false } } }
+        }
+    });
+
+    // --- CORE ENGINE ---
+    function updateUI() {
+        let wallet = initialBalance;
+        
+        // Totals
+        let tIn = 0, tOut = 0, tRes = 0;
+
+        // Period Trackers
+        const now = new Date();
+        const currYear = now.getFullYear();
+        const currMonth = now.getMonth();
+        const currWeek = getWeekNum(now);
+
+        // Week/Month/Year Accumulators
+        let wData = {i:0, o:0, r:0}, mData = {i:0, o:0, r:0}, yData = {i:0, o:0, r:0};
+
+        els.list.innerHTML = '';
+        const sorted = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        sorted.forEach(t => {
+            const val = t.amount;
+            const d = new Date(t.date);
+            
+            // Global Math
+            if(t.type === 'income') { wallet += val; tIn += val; }
+            if(t.type === 'expense') { wallet -= val; tOut += val; }
+            if(t.type === 'impulse') { tRes += val; }
+
+            // Period Check
+            const isYear = d.getFullYear() === currYear;
+            const isMonth = isYear && d.getMonth() === currMonth;
+            const isWeek = isYear && getWeekNum(d) === currWeek;
+
+            if(isYear) {
+                if(t.type === 'income') yData.i += val;
+                if(t.type === 'expense') yData.o += val;
+                if(t.type === 'impulse') yData.r += val;
+            }
+            if(isMonth) {
+                if(t.type === 'income') mData.i += val;
+                if(t.type === 'expense') mData.o += val;
+                if(t.type === 'impulse') mData.r += val;
+            }
+            if(isWeek) {
+                if(t.type === 'income') wData.i += val;
+                if(t.type === 'expense') wData.o += val;
+                if(t.type === 'impulse') wData.r += val;
+            }
+
+            // List Render
+            if (els.list.children.length < 50) {
+                const li = document.createElement('li');
+                li.className = 'tx-item';
+                let color = 'white', sign = '';
+                if(t.type === 'income') { color = 'var(--green)'; sign='+'; }
+                if(t.type === 'expense') { color = 'var(--red)'; sign='-'; }
+                if(t.type === 'impulse') { color = 'var(--gold)'; sign='★'; }
+
+                li.innerHTML = `
+                    <div>
+                        <div style="font-weight:600; font-size:0.95rem;">${t.desc}</div>
+                        <div style="font-size:0.75rem; color:var(--text-dim);">${t.date}</div>
+                    </div>
+                    <div style="display:flex; align-items:center;">
+                        <span class="mono" style="color:${color}; font-weight:700;">${sign}${usd.format(val)}</span>
+                        <button class="del-btn" onclick="removeTx(${t.id})">✕</button>
+                    </div>
+                `;
+                els.list.appendChild(li);
+            }
+        });
+
+        // Update Headers
+        els.balance.innerText = usd.format(wallet);
+        els.hIn.innerText = usd.format(tIn);
+        els.hOut.innerText = usd.format(tOut);
+        els.hRes.innerText = usd.format(tRes);
+
+        // Update Report Table
+        els.wIn.innerText = usd.format(wData.i); els.wOut.innerText = usd.format(wData.o); els.wSav.innerText = usd.format(wData.r);
+        els.mIn.innerText = usd.format(mData.i); els.mOut.innerText = usd.format(mData.o); els.mSav.innerText = usd.format(mData.r);
+        els.yIn.innerText = usd.format(yData.i); els.yOut.innerText = usd.format(yData.o); els.ySav.innerText = usd.format(yData.r);
+
+        // Update Chart
+        chart.data.datasets[0].data = [tIn, tOut, tRes];
+        chart.update();
+
+        localStorage.setItem(KEY_TX, JSON.stringify(transactions));
+    }
+
+    function addTx(e) {
+        e.preventDefault();
+        const desc = document.getElementById('desc').value;
+        const amount = parseFloat(document.getElementById('amount').value);
+        const type = document.getElementById('type').value;
+        const date = document.getElementById('dateInput').value;
+
+        if(!desc || isNaN(amount) || amount <= 0) return;
+
+        transactions.push({ id: Date.now(), desc, amount, type, date });
+        document.getElementById('desc').value = '';
+        document.getElementById('amount').value = '';
+        updateUI();
+    }
+
+    window.switchTab = (tab) => {
+        document.getElementById('viewList').style.display = tab === 'list' ? 'block' : 'none';
+        document.getElementById('viewChart').style.display = tab === 'chart' ? 'block' : 'none';
+        document.getElementById('tabList').className = tab === 'list' ? 'toggle-opt active' : 'toggle-opt';
+        document.getElementById('tabChart').className = tab === 'chart' ? 'toggle-opt active' : 'toggle-opt';
+    }
+
+    window.removeTx = (id) => {
+        if(confirm('Delete this transaction?')) {
+            transactions = transactions.filter(t => t.id !== id);
+            updateUI();
+        }
+    }
+
+    els.form.addEventListener('submit', addTx);
+    checkSetup();
+
+</script>
+</body>
+</html>
